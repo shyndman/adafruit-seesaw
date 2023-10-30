@@ -85,6 +85,12 @@ impl<T: Driver> DriverExt for T {
         reg: &Reg,
     ) -> Result<[u8; N], Self::Error> {
         let mut buffer = [0u8; N];
+        defmt::trace!(
+            "[0x{:x}] Reading register 0x{:x} of length {}",
+            addr,
+            u16::from_be_bytes(reg.clone()),
+            N
+        );
         self.write(addr, reg).await?;
         self.delay_us(DELAY_TIME).await;
         self.read(addr, &mut buffer).await?;
@@ -103,6 +109,13 @@ impl<T: Driver> DriverExt for T {
         let mut buffer = [0u8; N + 2];
         buffer[0..2].copy_from_slice(reg);
         buffer[2..].copy_from_slice(bytes);
+
+        defmt::trace!(
+            "[0x{:x}] Writing register 0x{:x}, value={=[u8]:b}",
+            addr,
+            u16::from_be_bytes(reg.clone()),
+            *bytes
+        );
 
         self.write(addr, &buffer).await?;
         self.delay_us(DELAY_TIME).await;

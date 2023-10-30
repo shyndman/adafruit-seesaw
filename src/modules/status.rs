@@ -37,6 +37,7 @@ pub trait StatusModule<D: Driver>: SeesawDevice<Driver = D> {
 
     async fn reset(&mut self) -> Result<(), crate::SeesawError<D::Error>> {
         let addr = self.addr();
+        defmt::info!("resetting status");
         self.driver()
             .write_u8(addr, STATUS_SWRST, 0xFF)
             .await
