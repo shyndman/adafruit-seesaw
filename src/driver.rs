@@ -2,15 +2,10 @@
 use crate::common::Reg;
 use embedded_hal_async::delay;
 
-const DELAY_TIME: u32 = 125;
+const DELAY_US: u32 = 1400;
 
-/// Blanket trait for something that implements I2C bus operations, with a
-/// combined Error associated type
-#[doc(hidden)]
-pub trait I2cDriver: embedded_hal_async::i2c::I2c {}
-
-pub trait Driver: I2cDriver + delay::DelayUs {}
-impl<T> Driver for T where T: I2cDriver + delay::DelayUs {}
+pub trait Driver: embedded_hal_async::i2c::I2c + delay::DelayUs {}
+impl<T> Driver for T where T: embedded_hal_async::i2c::I2c + delay::DelayUs {}
 
 macro_rules! impl_integer_write {
     ($fn:ident $nty:tt) => {
