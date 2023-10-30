@@ -41,20 +41,17 @@ const TOGGLE: &Reg = &[Modules::Gpio.into_u8(), 0x07];
 /// Writing a 1 to any bit in this register enables the interrupt on the
 /// corresponding pin. When the value on this pin changes, the corresponding
 /// bit will be set in the INTFLAG register. Writing 0 has no effect.
-#[allow(dead_code)]
 const INT_ENABLE: &Reg = &[Modules::Gpio.into_u8(), 0x08];
 
 /// WO - 32 bits
 /// Writing a 1 to any bit in this register disables the interrupt on the
 /// corresponding pin. Writing 0 has no effect.
-#[allow(dead_code)]
 const INT_DISABLE: &Reg = &[Modules::Gpio.into_u8(), 0x09];
 
 /// RO - 32 bits
 /// This register hold the status of all GPIO interrupts.
 /// When an interrupt fires, the corresponding bit in this register gets
 /// set. Reading this register clears all interrupts.
-#[allow(dead_code)]
 const INT_FLAG: &Reg = &[Modules::Gpio.into_u8(), 0x0A];
 
 /// WO - 32 bits
@@ -143,6 +140,30 @@ pub trait GpioModule<D: crate::Driver>: crate::SeesawDevice<Driver = D> {
 
         Ok(())
     }
+
+    async fn set_gpio_interrupts(
+        &mut self,
+        pin_mask: u32,
+        enabled: bool,
+    ) -> Result<(), crate::SeesawError<D::Error>> {
+        let addr = self.addr();
+        let bus = self.driver();
+
+        if enabled {
+            bus.write_u32(addr, INT_ENABLE, pin_mask).await
+        } else {
+            bus.write_u32(addr, INT_DISABLE, pin_mask).await
+        }
+        .map_err(crate::SeesawError::I2c)
+    }
+
+    async fn consume_interrupt_state(&mut self) -> Result<u32, crate::SeesawError<D::Error>> {
+        let addr = self.addr();
+        let bus = self.driver();
+        bus.read_u32(addr, INT_FLAG)
+            .await
+            .map_err(crate::SeesawError::I2c)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -168,25 +189,6 @@ pub enum PinMode {
 
 impl From<PinMode> for u8 {
     fn from(value: PinMode) -> Self {
-        value as u8
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(u8)]
-pub enum InterruptMode {
-    Disabled = 0x00,
-    Rising = 0x01,
-    Falling = 0x02,
-    Change = 0x03,
-    Onlow = 0x04,
-    Onhigh = 0x05,
-    OnlowWe = 0x0C,
-    OnhighWe = 0x0D,
-}
-
-impl From<InterruptMode> for u8 {
-    fn from(value: InterruptMode) -> Self {
         value as u8
     }
 }
