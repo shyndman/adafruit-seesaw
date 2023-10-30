@@ -87,8 +87,9 @@ impl<T: Driver> DriverExt for T {
             N
         );
         self.write(addr, reg).await?;
-        self.delay_us(DELAY_TIME).await;
+        self.delay_us(DELAY_US).await;
         self.read(addr, &mut buffer).await?;
+
         Ok(buffer)
     }
 
@@ -113,7 +114,8 @@ impl<T: Driver> DriverExt for T {
         );
 
         self.write(addr, &buffer).await?;
-        self.delay_us(DELAY_TIME).await;
+        self.delay_us(DELAY_US).await;
+
         Ok(())
     }
 }
