@@ -56,7 +56,7 @@ const CHANNEL_0: &Reg = &[Modules::Adc.into_u8(), 0x07];
 /// Allow a delay of at least 1ms in between sequential ADC reads on different
 /// channels.
 pub trait AdcModule<D: crate::Driver>: crate::SeesawDevice<Driver = D> {
-    fn analog_read(&mut self, pin: u8) -> Result<u16, crate::SeesawError<D::I2cError>> {
+    async fn analog_read(&mut self, pin: u8) -> Result<u16, crate::SeesawError<D::Error>> {
         let pin_offset = match Self::HARDWARE_ID {
             HardwareId::ATTINY817 => pin,
             HardwareId::SAMD09 => match pin {
@@ -71,6 +71,7 @@ pub trait AdcModule<D: crate::Driver>: crate::SeesawDevice<Driver = D> {
         let addr = self.addr();
         self.driver()
             .read_u16(addr, &[CHANNEL_0[0], CHANNEL_0[1] + pin_offset])
+            .await
             .map_err(crate::SeesawError::I2c)
     }
 }

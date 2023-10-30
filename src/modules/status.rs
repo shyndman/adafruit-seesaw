@@ -7,54 +7,60 @@ const STATUS_TEMP: &Reg = &[Modules::Status.into_u8(), 0x04];
 const STATUS_SWRST: &Reg = &[Modules::Status.into_u8(), 0x7F];
 
 pub trait StatusModule<D: Driver>: SeesawDevice<Driver = D> {
-    fn capabilities(&mut self) -> Result<DeviceCapabilities, crate::SeesawError<D::I2cError>> {
+    async fn capabilities(&mut self) -> Result<DeviceCapabilities, crate::SeesawError<D::Error>> {
         let addr = self.addr();
 
         self.driver()
             .read_u32(addr, STATUS_OPTIONS)
-            .map(|opts| opts.into())
+            .await
+            .map(|op| op.into())
             .map_err(crate::SeesawError::I2c)
     }
 
-    fn hardware_id(&mut self) -> Result<u8, crate::SeesawError<D::I2cError>> {
+    async fn hardware_id(&mut self) -> Result<u8, crate::SeesawError<D::Error>> {
         let addr = self.addr();
         self.driver()
             .read_u8(addr, STATUS_HW_ID)
+            .await
             .map_err(crate::SeesawError::I2c)
     }
 
-    fn product_info(&mut self) -> Result<ProductDateCode, crate::SeesawError<D::I2cError>> {
+    async fn product_info(&mut self) -> Result<ProductDateCode, crate::SeesawError<D::Error>> {
         let addr = self.addr();
 
         self.driver()
             .read_u32(addr, STATUS_VERSION)
+            .await
             .map(|version| version.into())
             .map_err(crate::SeesawError::I2c)
     }
 
-    fn reset(&mut self) -> Result<(), crate::SeesawError<D::I2cError>> {
+    async fn reset(&mut self) -> Result<(), crate::SeesawError<D::Error>> {
         let addr = self.addr();
-
         self.driver()
             .write_u8(addr, STATUS_SWRST, 0xFF)
-            .map(|_| self.driver().delay_us(125_000))
-            .map_err(crate::SeesawError::I2c)
+            .await
+            .map_err(crate::SeesawError::I2c)?;
+        self.driver().delay_us(125_000).await;
+        Ok(())
     }
 
-    fn reset_and_verify_seesaw(&mut self) -> Result<(), crate::SeesawError<D::I2cError>> {
+    async fn reset_and_verify_seesaw(&mut self) -> Result<(), crate::SeesawError<D::Error>> {
         let hw_id = Self::HARDWARE_ID;
-        self.reset().and_then(|_| match self.hardware_id() {
+        self.reset().await?;
+        match self.hardware_id().await {
             Ok(id) if id == hw_id.into() => Ok(()),
             Ok(id) => Err(crate::SeesawError::InvalidHardwareId(id)),
             Err(e) => Err(e),
-        })
+        }
     }
 
-    fn temp(&mut self) -> Result<f32, crate::SeesawError<D::I2cError>> {
+    async fn temp(&mut self) -> Result<f32, crate::SeesawError<D::Error>> {
         let addr = self.addr();
 
         self.driver()
             .read_u32(addr, STATUS_TEMP)
+            .await
             .map(|buf| (buf as f32 / (1u32 << 16) as f32))
             .map_err(crate::SeesawError::I2c)
     }

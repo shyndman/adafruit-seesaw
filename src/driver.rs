@@ -1,44 +1,40 @@
+#![allow(async_fn_in_trait)]
 use crate::common::Reg;
-use embedded_hal::blocking::{delay, i2c};
+use embedded_hal_async::delay;
 
 const DELAY_TIME: u32 = 125;
 
 /// Blanket trait for something that implements I2C bus operations, with a
 /// combined Error associated type
 #[doc(hidden)]
-pub trait I2cDriver: i2c::Write + i2c::WriteRead + i2c::Read {
-    type I2cError: From<<Self as i2c::Write>::Error>
-        + From<<Self as i2c::WriteRead>::Error>
-        + From<<Self as i2c::Read>::Error>;
-}
+pub trait I2cDriver: embedded_hal_async::i2c::I2c {}
 
-impl<T, E> I2cDriver for T
-where
-    T: i2c::Write<Error = E> + i2c::WriteRead<Error = E> + i2c::Read<Error = E>,
-{
-    type I2cError = E;
-}
-
-pub trait Driver: I2cDriver + delay::DelayUs<u32> {}
-impl<T> Driver for T where T: I2cDriver + delay::DelayUs<u32> {}
+pub trait Driver: I2cDriver + delay::DelayUs {}
+impl<T> Driver for T where T: I2cDriver + delay::DelayUs {}
 
 macro_rules! impl_integer_write {
     ($fn:ident $nty:tt) => {
-        fn $fn(
+        async fn $fn(
             &mut self,
-            addr: i2c::SevenBitAddress,
+            addr: embedded_hal_1::i2c::SevenBitAddress,
             reg: &Reg,
             value: $nty,
         ) -> Result<(), Self::Error> {
             self.register_write(addr, reg, &<$nty>::to_be_bytes(value))
+                .await
         }
     };
 }
 
 macro_rules! impl_integer_read {
     ($fn:ident $nty:tt) => {
-        fn $fn(&mut self, addr: i2c::SevenBitAddress, reg: &Reg) -> Result<$nty, Self::Error> {
+        async fn $fn(
+            &mut self,
+            addr: embedded_hal_1::i2c::SevenBitAddress,
+            reg: &Reg,
+        ) -> Result<$nty, Self::Error> {
             self.register_read::<{ ($nty::BITS / 8) as usize }>(addr, reg)
+                .await
                 .map($nty::from_be_bytes)
         }
     };
@@ -47,15 +43,15 @@ macro_rules! impl_integer_read {
 pub trait DriverExt {
     type Error;
 
-    fn register_read<const N: usize>(
+    async fn register_read<const N: usize>(
         &mut self,
-        addr: i2c::SevenBitAddress,
+        addr: embedded_hal_1::i2c::SevenBitAddress,
         reg: &Reg,
     ) -> Result<[u8; N], Self::Error>;
 
-    fn register_write<const N: usize>(
+    async fn register_write<const N: usize>(
         &mut self,
-        addr: i2c::SevenBitAddress,
+        addr: embedded_hal_1::i2c::SevenBitAddress,
         reg: &Reg,
         bytes: &[u8; N],
     ) -> Result<(), Self::Error>
@@ -81,23 +77,23 @@ pub trait DriverExt {
 }
 
 impl<T: Driver> DriverExt for T {
-    type Error = T::I2cError;
+    type Error = T::Error;
 
-    fn register_read<const N: usize>(
+    async fn register_read<const N: usize>(
         &mut self,
-        addr: i2c::SevenBitAddress,
+        addr: embedded_hal_1::i2c::SevenBitAddress,
         reg: &Reg,
     ) -> Result<[u8; N], Self::Error> {
         let mut buffer = [0u8; N];
-        self.write(addr, reg)?;
-        self.delay_us(DELAY_TIME);
-        self.read(addr, &mut buffer)?;
+        self.write(addr, reg).await?;
+        self.delay_us(DELAY_TIME).await;
+        self.read(addr, &mut buffer).await?;
         Ok(buffer)
     }
 
-    fn register_write<const N: usize>(
+    async fn register_write<const N: usize>(
         &mut self,
-        addr: i2c::SevenBitAddress,
+        addr: embedded_hal_1::i2c::SevenBitAddress,
         reg: &Reg,
         bytes: &[u8; N],
     ) -> Result<(), Self::Error>
@@ -108,8 +104,8 @@ impl<T: Driver> DriverExt for T {
         buffer[0..2].copy_from_slice(reg);
         buffer[2..].copy_from_slice(bytes);
 
-        self.write(addr, &buffer)?;
-        self.delay_us(DELAY_TIME);
+        self.write(addr, &buffer).await?;
+        self.delay_us(DELAY_TIME).await;
         Ok(())
     }
 }

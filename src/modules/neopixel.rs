@@ -3,6 +3,8 @@ use crate::{
     driver::Driver,
     DriverExt, SeesawDevice, SeesawError,
 };
+#[allow(unused_imports)]
+use futures::prelude::*;
 
 /// WO - 8 bits
 /// This register sets the pin number (PORTA) that is used for the NeoPixel
@@ -31,20 +33,26 @@ pub trait NeopixelModule<D: Driver>: SeesawDevice<Driver = D> {
     /// The number of neopixels on the device
     const N_LEDS: u16 = 1;
 
-    fn enable_neopixel(&mut self) -> Result<(), SeesawError<D::I2cError>> {
+    async fn enable_neopixel(&mut self) -> Result<(), SeesawError<D::Error>> {
         let addr = self.addr();
 
         self.driver()
             .write_u8(addr, SET_PIN, Self::PIN)
-            .and_then(|_| {
-                self.driver().delay_us(10_000);
-                self.driver().write_u16(addr, SET_LEN, 3 * Self::N_LEDS)
-            })
-            .map(|_| self.driver().delay_us(10_000))
-            .map_err(SeesawError::I2c)
+            .await
+            .map_err(SeesawError::I2c)?;
+        self.driver().delay_us(10_000).await;
+        self.driver()
+            .write_u16(addr, SET_LEN, 3 * Self::N_LEDS)
+            .await
+            .map_err(SeesawError::I2c)?;
+        self.driver().delay_us(10_000).await;
+        Ok(())
     }
 
-    fn set_neopixel_speed(&mut self, speed: NeopixelSpeed) -> Result<(), SeesawError<D::I2cError>> {
+    async fn set_neopixel_speed(
+        &mut self,
+        speed: NeopixelSpeed,
+    ) -> Result<(), SeesawError<D::Error>> {
         let addr = self.addr();
 
         self.driver()
@@ -56,60 +64,65 @@ pub trait NeopixelModule<D: Driver>: SeesawDevice<Driver = D> {
                     NeopixelSpeed::Khz800 => 1,
                 },
             )
-            .map(|_| self.driver().delay_us(10_000))
-            .map_err(SeesawError::I2c)
+            .await
+            .map_err(SeesawError::I2c)?;
+        self.driver().delay_us(10_000).await;
+        Ok(())
     }
 
-    fn set_neopixel_color(&mut self, r: u8, g: u8, b: u8) -> Result<(), SeesawError<D::I2cError>> {
-        self.set_nth_neopixel_color(0, r, g, b)
+    async fn set_neopixel_color(
+        &mut self,
+        r: u8,
+        g: u8,
+        b: u8,
+    ) -> Result<(), SeesawError<D::Error>> {
+        self.set_nth_neopixel_color(0, r, g, b).await
     }
 
-    fn set_nth_neopixel_color(
+    async fn set_nth_neopixel_color(
         &mut self,
         n: u16,
         r: u8,
         g: u8,
         b: u8,
-    ) -> Result<(), SeesawError<D::I2cError>> {
+    ) -> Result<(), SeesawError<D::Error>> {
         assert!(n < Self::N_LEDS);
         let [zero, one] = u16::to_be_bytes(3 * n);
         let addr = self.addr();
 
         self.driver()
             .register_write(addr, SET_BUF, &[zero, one, r, g, b, 0x00])
+            .await
             .map_err(SeesawError::I2c)
     }
 
-    fn set_neopixel_colors(
+    async fn set_neopixel_colors(
         &mut self,
         colors: &[(u8, u8, u8); Self::N_LEDS as usize],
-    ) -> Result<(), SeesawError<D::I2cError>>
+    ) -> Result<(), SeesawError<D::Error>>
     where
         [(); Self::N_LEDS as usize]: Sized,
     {
         let addr = self.addr();
-
-        (0..Self::N_LEDS)
-            .into_iter()
-            .try_for_each(|n| {
-                let [zero, one] = u16::to_be_bytes(3 * n);
-                let color = colors[n as usize];
-                self.driver().register_write(
-                    addr,
-                    SET_BUF,
-                    &[zero, one, color.0, color.1, color.2, 0x00],
-                )
-            })
-            .map_err(SeesawError::I2c)
+        for n in 0..Self::N_LEDS {
+            let [zero, one] = u16::to_be_bytes(3 * n);
+            let color = colors[n as usize];
+            self.driver()
+                .register_write(addr, SET_BUF, &[zero, one, color.0, color.1, color.2, 0x00])
+                .await
+                .map_err(SeesawError::I2c)?;
+        }
+        Ok(())
     }
 
-    fn sync_neopixel(&mut self) -> Result<(), SeesawError<D::I2cError>> {
+    async fn sync_neopixel(&mut self) -> Result<(), SeesawError<D::Error>> {
         let addr = self.addr();
-
         self.driver()
             .register_write(addr, SHOW, &[])
-            .map(|_| self.driver().delay_us(125))
-            .map_err(SeesawError::I2c)
+            .await
+            .map_err(SeesawError::I2c)?;
+        self.driver().delay_us(125).await;
+        Ok(())
     }
 }
 

@@ -1,9 +1,15 @@
+#![allow(async_fn_in_trait)]
 #![no_std]
 #![allow(const_evaluatable_unchecked, incomplete_features)]
-#![feature(array_try_map, generic_const_exprs)]
+#![feature(
+    async_iterator,
+    async_iter_from_iter,
+    array_try_map,
+    generic_const_exprs,
+    try_blocks,
+)]
+
 // TODO improve the organization of the exports/visibility
-use embedded_hal::blocking::delay;
-pub mod bus;
 mod common;
 pub mod devices;
 mod driver;
@@ -22,26 +28,11 @@ pub mod prelude {
     };
 }
 
-pub type SeesawSingleThread<BUS> = Seesaw<shared_bus::NullMutex<BUS>>;
+pub struct Seesaw {}
 
-pub struct Seesaw<M> {
-    mutex: M,
-}
-
-impl<DELAY, I2C, M> Seesaw<M>
-where
-    DELAY: delay::DelayUs<u32>,
-    I2C: I2cDriver,
-    M: shared_bus::BusMutex<Bus = bus::Bus<DELAY, I2C>>,
-{
-    pub fn new(delay: DELAY, i2c: I2C) -> Self {
-        Seesaw {
-            mutex: M::create(bus::Bus(delay, i2c)),
-        }
-    }
-
-    pub fn acquire_driver(&self) -> bus::BusProxy<'_, M> {
-        bus::BusProxy { mutex: &self.mutex }
+impl Seesaw {
+    pub fn new() -> Self {
+        Seesaw {}
     }
 }
 
@@ -80,5 +71,6 @@ pub trait SeesawDeviceInit<D: Driver>: SeesawDevice<Driver = D>
 where
     Self: Sized,
 {
-    fn init(self) -> Result<Self, Self::Error>;
+    #[allow(async_fn_in_trait)]
+    async fn init(self) -> Result<Self, Self::Error>;
 }
