@@ -1,13 +1,14 @@
 #![allow(async_fn_in_trait)]
 #![no_std]
 #![allow(const_evaluatable_unchecked, incomplete_features)]
+#![allow(stable_features)]
 #![feature(
     async_fn_in_trait,
     async_iter_from_iter,
     async_iterator,
     array_try_map,
     generic_const_exprs,
-    try_blocks,
+    try_blocks
 )]
 
 // TODO improve the organization of the exports/visibility
