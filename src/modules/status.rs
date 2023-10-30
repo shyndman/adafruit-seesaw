@@ -6,6 +6,8 @@ const STATUS_OPTIONS: &Reg = &[Modules::Status.into_u8(), 0x03];
 const STATUS_TEMP: &Reg = &[Modules::Status.into_u8(), 0x04];
 const STATUS_SWRST: &Reg = &[Modules::Status.into_u8(), 0x7F];
 
+const POST_RESET_DELAY_MS: u32 = 500;
+
 pub trait StatusModule<D: Driver>: SeesawDevice<Driver = D> {
     async fn capabilities(&mut self) -> Result<DeviceCapabilities, crate::SeesawError<D::Error>> {
         let addr = self.addr();
@@ -42,7 +44,9 @@ pub trait StatusModule<D: Driver>: SeesawDevice<Driver = D> {
             .write_u8(addr, STATUS_SWRST, 0xFF)
             .await
             .map_err(crate::SeesawError::I2c)?;
-        self.driver().delay_us(125_000).await;
+
+        self.driver().delay_ms(POST_RESET_DELAY_MS);
+
         Ok(())
     }
 
