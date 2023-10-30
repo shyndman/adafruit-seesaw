@@ -3,8 +3,6 @@ use crate::{
     driver::Driver,
     DriverExt, SeesawDevice, SeesawError,
 };
-#[allow(unused_imports)]
-use futures::prelude::*;
 
 /// WO - 8 bits
 /// This register sets the pin number (PORTA) that is used for the NeoPixel
