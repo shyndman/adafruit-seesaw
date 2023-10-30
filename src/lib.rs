@@ -30,14 +30,6 @@ pub mod prelude {
     };
 }
 
-pub struct Seesaw {}
-
-impl Seesaw {
-    pub fn new() -> Self {
-        Seesaw {}
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum SeesawError<E> {
     /// I2C bus error
