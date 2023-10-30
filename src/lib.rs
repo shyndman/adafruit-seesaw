@@ -2,8 +2,9 @@
 #![no_std]
 #![allow(const_evaluatable_unchecked, incomplete_features)]
 #![feature(
-    async_iterator,
+    async_fn_in_trait,
     async_iter_from_iter,
+    async_iterator,
     array_try_map,
     generic_const_exprs,
     try_blocks,
